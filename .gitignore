@@ -1,0 +1,6 @@
+# Real project list - business data, never commit
+data/
+
+# Test output
+tests/preview.html
+tests/*.png

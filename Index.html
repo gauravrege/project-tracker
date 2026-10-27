@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #f4f6f9; --panel: #fff; --text: #1f2933; --muted: #66788a; --line: #dde3ea; --brand: #2563eb;
+    --red: #c62828; --red-bg: #fdecea; --amber: #a15c00; --amber-bg: #fff4e0; --green: #1b7f3b; --green-bg: #e6f4ea;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  .muted { color: var(--muted); }
+
+  /* status colours: every element tagged st-<status> gets --c */
+  .st-upcoming { --c: #64748b; } .st-in-progress { --c: #2563eb; } .st-testing { --c: #d97706; }
+  .st-delivered { --c: #16a34a; } .st-on-hold { --c: #94a3b8; } .st-not-set { --c: #c62828; }
+
+  .top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .top h1 { font-size: 18px; margin: 0 6px 0 0; }
+  .spacer { flex: 1; }
+  .btn { font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; text-decoration: none; white-space: nowrap; }
+  .btn:hover { background: #f0f3f7; }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.danger { color: var(--red); border-color: #f1c4c4; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  .banner { display: flex; gap: 10px; align-items: flex-start; margin: 12px 16px 0; padding: 10px 12px; border-radius: 8px; background: var(--red-bg); color: var(--red); }
+  .banner[hidden] { display: none; }
+  .banner span { flex: 1; }
+  .banner button { border: 0; background: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+
+  .bar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 2px; background: #e6eaf0; padding: 3px; border-radius: 8px; flex-wrap: wrap; }
+  .tabs button { font: inherit; border: 0; background: transparent; padding: 6px 12px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+  .tabs button.active { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .badge { background: var(--red); color: #fff; border-radius: 10px; padding: 0 6px; font-size: 12px; margin-left: 2px; }
+  .badge:empty { display: none; }
+  input, select, textarea { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--text); width: 100%; }
+  textarea { resize: vertical; }
+  #search { flex: 1; min-width: 160px; max-width: 320px; }
+  #owner-filter { width: auto; }
+  main { padding: 0 16px 32px; }
+
+  /* board */
+  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+  .col { flex: 1 0 215px; max-width: 320px; background: #e9edf2; border-radius: 10px; padding: 8px; border: 2px solid transparent; }
+  .col.over { border-color: var(--brand); background: #e1e9f8; }
+  .col h3 { font-size: 13px; margin: 4px 4px 10px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+  .count { color: var(--muted); font-weight: normal; }
+  .cards { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+  .card { background: var(--panel); border-radius: 8px; padding: 9px 10px; border: 1px solid var(--line); border-left: 4px solid var(--c); cursor: pointer; }
+  .card:hover, .card:focus { box-shadow: 0 2px 8px rgba(0,0,0,.1); outline: none; }
+  .card.dragging { opacity: .4; }
+  .card-top { display: flex; justify-content: space-between; gap: 6px; align-items: flex-start; }
+  .pri { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+  .pri-high { background: var(--red-bg); color: var(--red); }
+  .pri-medium { background: var(--amber-bg); color: var(--amber); }
+  .pri-low { background: #eef1f4; color: var(--muted); }
+  .meta { margin-top: 5px; font-size: 12px; }
+  .chip { background: #e8eef6; padding: 1px 7px; border-radius: 10px; font-size: 12px; }
+  .chip.none { background: none; color: var(--muted); border: 1px dashed #c9d2dc; }
+  .dates { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .issue { font-size: 12px; margin-top: 4px; }
+  .red { color: var(--red); } .amber { color: var(--amber); } .green { color: var(--green); }
+  .empty { color: var(--muted); font-size: 12px; text-align: center; margin: 12px 0; }
+
+  /* table */
+  .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; background: #f8fafc; }
+  th.sorted { color: var(--text); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #f6f9fd; }
+  tr.flag td:first-child { box-shadow: inset 3px 0 var(--red); }
+  td.num { text-align: right; }
+  .st { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 10px; color: #fff; background: var(--c); white-space: nowrap; }
+  .gh { text-decoration: none; color: var(--brand); }
+
+  /* needs attention */
+  .attn { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+  .attn-row { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+  .attn-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .attn-row ul { margin: 6px 0 0; padding-left: 18px; }
+  .all-good { background: var(--green-bg); color: var(--green); padding: 14px; border-radius: 8px; max-width: 760px; }
+
+  /* numbers */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .tile .big { font-size: 26px; font-weight: 600; }
+  .tile .label { font-size: 13px; }
+  .tile .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .status-tile { border-left: 4px solid var(--c); }
+  h2.section { font-size: 14px; margin: 18px 0 8px; }
+  .bars { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; max-width: 560px; }
+  .bar-row { display: grid; grid-template-columns: 80px 1fr 30px; gap: 8px; align-items: center; margin: 4px 0; font-size: 13px; }
+  .bar-fill { height: 14px; background: #16a34a; border-radius: 3px; min-width: 2px; }
+
+  /* dialog */
+  dialog { border: 0; border-radius: 12px; padding: 0; width: min(700px, calc(100vw - 24px)); max-height: calc(100vh - 24px); box-shadow: 0 10px 40px rgba(0,0,0,.25); color: var(--text); }
+  dialog::backdrop { background: rgba(15,23,42,.45); }
+  form { padding: 18px; }
+  form h2 { margin: 0 0 12px; font-size: 17px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+  .wide { grid-column: 1 / -1; }
+  .note { padding: 8px 10px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+  .note.amber { background: var(--amber-bg); }
+  .note.red { background: var(--red-bg); }
+  .note ul { margin: 4px 0 0; padding-left: 18px; }
+  .error { background: var(--red-bg); color: var(--red); padding: 8px 10px; border-radius: 6px; margin: 12px 0 0; }
+  .error[hidden] { display: none; }
+  .dlg-foot { display: flex; gap: 8px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .dlg-foot .muted { flex: 1; font-size: 12px; min-width: 160px; }
+
+  .toast { position: fixed; bottom: 18px; right: 18px; background: #1f2933; color: #fff; padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .top h1 { font-size: 16px; }
+    #search { max-width: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="top">
+    <h1>Project Tracker</h1>
+    <span id="busy" class="muted"></span>
+    <span class="spacer"></span>
+    <span id="who" class="muted"></span>
+    <a id="sheet-link" class="btn" target="_blank" rel="noopener">Open Sheet</a>
+    <button id="refresh" class="btn" type="button">Refresh</button>
+    <button id="add" class="btn primary" type="button">+ New project</button>
+  </header>
+
+  <div id="banner" class="banner" role="alert" hidden><span></span><button type="button" aria-label="Close">×</button></div>
+
+  <nav class="bar">
+    <div class="tabs">
+      <button type="button" data-view="board">Board</button>
+      <button type="button" data-view="table">Table</button>
+      <button type="button" data-view="attention">Needs attention<span id="attn-count" class="badge"></span></button>
+      <button type="button" data-view="numbers">Numbers</button>
+    </div>
+    <input id="search" type="search" placeholder="Search projects">
+    <select id="owner-filter" aria-label="Show projects for"></select>
+  </nav>
+
+  <main id="main"><p class="muted">Loading…</p></main>
+
+  <dialog id="dlg">
+    <form id="form" novalidate>
+      <h2 id="dlg-title">Project</h2>
+      <div id="dlg-notes"></div>
+      <div class="grid">
+        <label class="wide">Project name *<input name="name" autocomplete="off"></label>
+        <label>Status<select name="status"></select></label>
+        <label>Owner<select name="owner"></select></label>
+        <label>Priority<select name="priority"></select></label>
+        <label>Start date<input type="date" name="startDate"></label>
+        <label>Target date<input type="date" name="targetDate"></label>
+        <label>Delivered date<input type="date" name="deliveredDate"></label>
+        <label>Asked by<input name="askedBy" placeholder="Who wants this?"></label>
+        <label>Tester<input name="tester" placeholder="Who is testing it?"></label>
+        <label>Runs on<input name="runsOn" placeholder="e.g. Accounts PC, run.bat"></label>
+        <label class="wide">GitHub link<input name="github" placeholder="https://github.com/..."></label>
+        <label class="wide">Blocker<input name="blocker" placeholder="What is stopping this? Leave empty if nothing."></label>
+        <label class="wide">Feedback from testing<textarea name="feedback" rows="2"></textarea></label>
+        <label class="wide">Notes<textarea name="notes" rows="3"></textarea></label>
+      </div>
+      <p id="dlg-error" class="error" role="alert" hidden></p>
+      <div class="dlg-foot">
+        <span id="dlg-meta" class="muted"></span>
+        <button type="button" id="delete" class="btn danger">Delete</button>
+        <button type="button" id="cancel" class="btn">Cancel</button>
+        <button type="submit" id="save" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const FIELDS = ['name', 'owner', 'askedBy', 'status', 'priority', 'startDate', 'targetDate', 'deliveredDate',
+  'tester', 'feedback', 'blocker', 'github', 'runsOn', 'notes'];
+const LABELS = { statusSince: 'Status since', startDate: 'Start date', targetDate: 'Target date', deliveredDate: 'Delivered date', updatedAt: 'Updated at' };
+const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const NOT_SET = 'Not set';
+
+const state = {
+  data: null,
+  view: pref('view', 'board'),
+  owner: pref('owner', 'All'),
+  search: '',
+  sort: { key: 'targetDate', dir: 1 },
+  editing: null, // the project open in the dialog, as loaded (keeps id and updatedAt)
+  busy: false,
+};
+
+// ---------- small helpers ----------
+function pref(key, fallback) { try { return localStorage.getItem('tracker.' + key) || fallback; } catch (e) { return fallback; } }
+function setPref(key, value) { try { localStorage.setItem('tracker.' + key, value); } catch (e) { /* ignore */ } }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function cls(s) { return String(s).toLowerCase().replace(/[^a-z]+/g, '-'); }
+function utc(d) { const [y, m, day] = d.split('-').map(Number); return Date.UTC(y, m - 1, day); }
+function days(from, to) { return Math.round((utc(to) - utc(from)) / 86400000); }
+function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+function fmt(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return Number(day) + ' ' + MONTHS[Number(m) - 1] + (y === state.data.today.slice(0, 4) ? '' : ' ' + y);
+}
+function isActive(p) { return p.status !== 'Delivered' && p.status !== 'On hold'; }
+function statusOf(p) { return state.data.statuses.includes(p.status) ? p.status : NOT_SET; }
+function find(id) { return state.data.projects.find(p => p.id === id); }
+function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
+
+// Everything worth a second look, worst first. Each is [colour, text].
+function issues(p) {
+  const today = state.data.today;
+  const out = [];
+  Object.keys(p.bad || {}).forEach(f => out.push(['red', (LABELS[f] || f) + ' in the Sheet is not a date: "' + p.bad[f] + '"']));
+  if (statusOf(p) === NOT_SET) out.push(['red', p.status ? 'Status "' + p.status + '" is not one of the tracker statuses' : 'No status set']);
+  if (!p.id) out.push(['red', 'No ID yet. Open the tracker as an editor once to fix this.']);
+  if (isActive(p) && p.blocker) out.push(['red', 'Blocked: ' + p.blocker]);
+  if (isActive(p) && p.targetDate) {
+    const left = days(today, p.targetDate);
+    if (left < 0) out.push(['red', plural(-left, 'day') + ' past target date']);
+    else if (left === 0) out.push(['amber', 'Due today']);
+    else if (left <= 7) out.push(['amber', 'Due in ' + plural(left, 'day')]);
+  }
+  if (!p.targetDate && (p.status === 'In progress' || p.status === 'Testing')) out.push(['amber', 'No target date']);
+  if (p.status === 'Testing' && p.statusSince) {
+    const d = days(p.statusSince, today);
+    if (d > 7) out.push(['amber', 'In testing for ' + d + ' days']);
+  }
+  if (isActive(p) && p.updatedAt) {
+    const d = days(p.updatedAt.slice(0, 10), today);
+    if (d > 14) out.push(['amber', 'No update for ' + d + ' days']);
+  }
+  if (p.status === 'Delivered' && !p.deliveredDate) out.push(['amber', 'Delivered, but no delivered date']);
+  return out.sort((a, b) => (a[0] === 'red' ? 0 : 1) - (b[0] === 'red' ? 0 : 1));
+}
+
+// Days taken (start to delivered), and days late (negative = early).
+function timing(p) {
+  const taken = p.startDate && p.deliveredDate ? days(p.startDate, p.deliveredDate) : null;
+  let late = null;
+  if (p.deliveredDate && p.targetDate) late = days(p.targetDate, p.deliveredDate);
+  else if (isActive(p) && p.targetDate && days(p.targetDate, state.data.today) > 0) late = days(p.targetDate, state.data.today);
+  return { taken: taken, late: late };
+}
+
+function visible() {
+  const q = state.search.trim().toLowerCase();
+  return state.data.projects.filter(p => {
+    const ownerOk = state.owner === 'All'
+      || (state.owner === 'No owner' ? !p.owner : p.owner === state.owner || (p.owner === 'Both' && state.owner !== 'Both'));
+    const text = [p.name, p.askedBy, p.notes, p.blocker, p.tester, p.runsOn, p.feedback].join(' ').toLowerCase();
+    return ownerOk && (!q || text.includes(q));
+  });
+}
+
+// ---------- talking to the server ----------
+function call(fn, args, onOk, onFail) {
+  if (!window.google || !google.script || !google.script.run) {
+    onFail(new Error('This page only works when opened from its Google Apps Script link.'));
+    return;
+  }
+  google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail)[fn](...args);
+}
+function errText(err) { return String((err && err.message) || err).replace(/^(Exception|Error|ScriptError):\s*/, ''); }
+
+function load(quiet) {
+  if (!quiet) setBusy('Loading…');
+  call('getData', [], d => {
+    if (!quiet) setBusy('');
+    const changed = JSON.stringify(d) !== JSON.stringify(state.data);
+    state.data = d;
+    if (changed) render();
+  }, err => {
+    if (!quiet) { setBusy(''); showBanner(errText(err)); }
+  });
+}
+
+function save(project) {
+  if (state.busy) return;
+  setBusy('Saving…');
+  hideDialogError();
+  call('saveProject', [project], d => afterWrite(d, 'Saved'), onWriteError);
+}
+
+function remove(project) {
+  if (state.busy) return;
+  setBusy('Deleting…');
+  call('deleteProject', [project.id, project.updatedAt], d => afterWrite(d, 'Deleted'), onWriteError);
+}
+
+function afterWrite(d, message) {
+  setBusy('');
+  state.data = d;
+  if ($('#dlg').open) $('#dlg').close();
+  toast(message);
+  render();
+}
+function onWriteError(err) {
+  setBusy('');
+  if ($('#dlg').open) showDialogError(errText(err));
+  else showBanner(errText(err));
+}
+
+// ---------- page chrome ----------
+function setBusy(text) {
+  state.busy = !!text;
+  $('#busy').textContent = text;
+  $('#save').disabled = state.busy;
+  $('#delete').disabled = state.busy;
+}
+function showBanner(msg) { $('#banner span').textContent = msg; $('#banner').hidden = false; }
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function options(select, values, blankLabel) {
+  select.innerHTML = (blankLabel != null ? '<option value="">' + esc(blankLabel) + '</option>' : '')
+    + values.map(v => '<option>' + esc(v) + '</option>').join('');
+}
+
+// ---------- views ----------
+function render() {
+  const d = state.data;
+  if (!d) return;
+  $('#sheet-link').href = d.sheetUrl;
+  $('#who').textContent = d.user || '';
+
+  const ownerFilter = $('#owner-filter');
+  const ownerChoices = ['All'].concat(d.owners, ['No owner']);
+  if (ownerFilter.options.length !== ownerChoices.length) {
+    ownerFilter.innerHTML = ownerChoices.map(o => '<option value="' + esc(o) + '">' + (o === 'All' ? 'Everyone' : esc(o)) + '</option>').join('');
+  }
+  if (!ownerChoices.includes(state.owner)) state.owner = 'All';
+  ownerFilter.value = state.owner;
+
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
+
+  const list = visible();
+  $('#attn-count').textContent = list.filter(p => issues(p).length).length || '';
+
+  const main = $('#main');
+  if (!d.projects.length) {
+    main.innerHTML = '<p class="muted">No projects yet. Click <b>+ New project</b> to add the first one.</p>';
+  } else if (!list.length) {
+    main.innerHTML = '<p class="muted">No projects match your search or filter.</p>';
+  } else if (state.view === 'table') {
+    main.innerHTML = tableView(list);
+  } else if (state.view === 'attention') {
+    main.innerHTML = attentionView(list);
+  } else if (state.view === 'numbers') {
+    main.innerHTML = numbersView(list);
+  } else {
+    main.innerHTML = boardView(list);
+  }
+}
+
+function byPriorityThenTarget(a, b) {
+  const pa = a.priority in PRIORITY_ORDER ? PRIORITY_ORDER[a.priority] : 3;
+  const pb = b.priority in PRIORITY_ORDER ? PRIORITY_ORDER[b.priority] : 3;
+  return pa - pb || (a.targetDate || '9999').localeCompare(b.targetDate || '9999') || a.name.localeCompare(b.name);
+}
+function byDeliveredNewest(a, b) { return (b.deliveredDate || '').localeCompare(a.deliveredDate || '') || a.name.localeCompare(b.name); }
+
+function boardView(list) {
+  const columns = state.data.statuses.slice();
+  if (list.some(p => statusOf(p) === NOT_SET)) columns.unshift(NOT_SET);
+  return '<div class="board">' + columns.map(s => {
+    const items = list.filter(p => statusOf(p) === s).sort(s === 'Delivered' ? byDeliveredNewest : byPriorityThenTarget);
+    return '<section class="col st-' + cls(s) + '" data-status="' + esc(s) + '">'
+      + '<h3><span class="dot"></span>' + esc(s) + ' <span class="count">' + items.length + '</span></h3>'
+      + '<div class="cards">' + (items.map(card).join('') || '<p class="empty">Nothing here</p>') + '</div></section>';
+  }).join('') + '</div>';
+}
+
+function card(p) {
+  const t = timing(p);
+  let dates = '';
+  if (p.status === 'Delivered' && p.deliveredDate) {
+    dates = 'Delivered ' + fmt(p.deliveredDate) + (t.taken != null ? ' · took ' + plural(t.taken, 'day') : '');
+  } else if (p.targetDate) {
+    dates = 'Target ' + fmt(p.targetDate);
+  }
+  return '<article class="card st-' + cls(statusOf(p)) + '" draggable="' + (p.id ? 'true' : 'false') + '" data-id="' + esc(p.id) + '" tabindex="0">'
+    + '<div class="card-top"><b>' + esc(p.name || '(no name)') + '</b>'
+    + (p.priority ? '<span class="pri pri-' + cls(p.priority) + '">' + esc(p.priority) + '</span>' : '') + '</div>'
+    + '<div class="meta">' + (p.owner ? '<span class="chip">' + esc(p.owner) + '</span>' : '<span class="chip none">No owner</span>')
+    + (p.askedBy ? ' <span class="muted">for ' + esc(p.askedBy) + '</span>' : '') + '</div>'
+    + (dates ? '<div class="dates">' + dates + '</div>' : '')
+    + issues(p).slice(0, 2).map(i => '<div class="issue ' + i[0] + '">' + esc(i[1]) + '</div>').join('')
+    + '</article>';
+}
+
+const TABLE_COLUMNS = [
+  ['name', 'Project'], ['owner', 'Owner'], ['status', 'Status'], ['priority', 'Priority'],
+  ['startDate', 'Start'], ['targetDate', 'Target'], ['deliveredDate', 'Delivered'],
+  ['taken', 'Days taken'], ['late', 'On time?'], ['askedBy', 'Asked by'], ['updatedAt', 'Last update'],
+];
+
+function sortValue(p, key) {
+  if (key === 'taken' || key === 'late') return timing(p)[key];
+  if (key === 'priority') return p.priority in PRIORITY_ORDER ? PRIORITY_ORDER[p.priority] : null;
+  if (key === 'status') { const i = state.data.statuses.indexOf(p.status); return i === -1 ? null : i; }
+  return p[key] ? String(p[key]).toLowerCase() : null;
+}
+function sortRows(list) {
+  const { key, dir } = state.sort;
+  return list.slice().sort((a, b) => {
+    const x = sortValue(a, key), y = sortValue(b, key);
+    if (x == null) return y == null ? 0 : 1; // blanks always last
+    if (y == null) return -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * dir;
+  });
+}
+
+function lateText(p, t) {
+  if (t.late == null) return '';
+  if (p.status === 'Delivered') return t.late > 0 ? '<span class="red">' + plural(t.late, 'day') + ' late</span>' : '<span class="green">On time</span>';
+  return '<span class="red">' + plural(t.late, 'day') + ' late, still open</span>';
+}
+
+function tableView(list) {
+  const head = TABLE_COLUMNS.map(([key, label]) => {
+    const on = state.sort.key === key;
+    return '<th data-sort="' + key + '" class="' + (on ? 'sorted' : '') + '">' + label + (on ? (state.sort.dir > 0 ? ' ▲' : ' ▼') : '') + '</th>';
+  }).join('');
+  const rows = sortRows(list).map(p => {
+    const t = timing(p);
+    const flag = issues(p).some(i => i[0] === 'red');
+    const url = safeUrl(p.github);
+    return '<tr data-id="' + esc(p.id) + '" class="' + (flag ? 'flag' : '') + '">'
+      + '<td><b>' + esc(p.name) + '</b>' + (url ? ' <a class="gh" href="' + esc(url) + '" target="_blank" rel="noopener" title="Open on GitHub">↗</a>' : '') + '</td>'
+      + '<td>' + esc(p.owner) + '</td>'
+      + '<td><span class="st st-' + cls(statusOf(p)) + '">' + esc(p.status || NOT_SET) + '</span></td>'
+      + '<td>' + esc(p.priority) + '</td>'
+      + '<td>' + fmt(p.startDate) + '</td><td>' + fmt(p.targetDate) + '</td><td>' + fmt(p.deliveredDate) + '</td>'
+      + '<td class="num">' + (t.taken == null ? '' : t.taken) + '</td>'
+      + '<td>' + lateText(p, t) + '</td>'
+      + '<td>' + esc(p.askedBy) + '</td>'
+      + '<td class="muted">' + (p.updatedAt ? fmt(p.updatedAt.slice(0, 10)) : '') + '</td></tr>';
+  }).join('');
+  return '<div class="table-wrap"><table><thead><tr>' + head + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function attentionView(list) {
+  const items = list.map(p => ({ p: p, found: issues(p) })).filter(x => x.found.length)
+    .sort((a, b) => (b.found[0][0] === 'red') - (a.found[0][0] === 'red') || b.found.length - a.found.length);
+  if (!items.length) return '<p class="all-good">Nothing needs attention right now.</p>';
+  return '<div class="attn">' + items.map(({ p, found }) =>
+    '<div class="attn-row" data-id="' + esc(p.id) + '"><b>' + esc(p.name) + '</b> '
+    + '<span class="st st-' + cls(statusOf(p)) + '">' + esc(p.status || NOT_SET) + '</span> '
+    + '<span class="muted">' + esc(p.owner || 'No owner') + '</span>'
+    + '<ul>' + found.map(i => '<li class="' + i[0] + '">' + esc(i[1]) + '</li>').join('') + '</ul></div>'
+  ).join('') + '</div>';
+}
+
+function tile(big, label, sub, extraClass) {
+  return '<div class="tile ' + (extraClass || '') + '"><div class="big">' + big + '</div><div class="label">' + label + '</div>'
+    + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+}
+
+function numbersView(list) {
+  const today = state.data.today;
+  const delivered = list.filter(p => p.status === 'Delivered');
+  const thisMonth = delivered.filter(p => (p.deliveredDate || '').startsWith(today.slice(0, 7))).length;
+  const timed = delivered.filter(p => p.startDate && p.deliveredDate);
+  const avg = timed.length ? Math.round(timed.reduce((sum, p) => sum + days(p.startDate, p.deliveredDate), 0) / timed.length) : null;
+  const withTarget = delivered.filter(p => p.targetDate && p.deliveredDate);
+  const onTime = withTarget.filter(p => p.deliveredDate <= p.targetDate).length;
+  const active = list.filter(p => isActive(p) && statusOf(p) !== NOT_SET);
+
+  let html = '<div class="tiles">'
+    + tile(active.length, 'Active projects', 'Upcoming, in progress or testing')
+    + tile(thisMonth, 'Delivered this month', MONTHS[Number(today.slice(5, 7)) - 1] + ' ' + today.slice(0, 4))
+    + tile(avg == null ? '–' : plural(avg, 'day'), 'Average time to deliver',
+      timed.length ? 'From ' + plural(timed.length, 'project') + ' with start and delivered dates' : 'Needs projects with start and delivered dates')
+    + tile(withTarget.length ? Math.round(100 * onTime / withTarget.length) + '%' : '–', 'Delivered on time',
+      withTarget.length ? onTime + ' of ' + withTarget.length + ' delivered by their target date' : 'Needs delivered projects with a target date')
+    + '</div>';
+
+  const statuses = state.data.statuses.concat(list.some(p => statusOf(p) === NOT_SET) ? [NOT_SET] : []);
+  html += '<h2 class="section">By status</h2><div class="tiles">'
+    + statuses.map(s => tile(list.filter(p => statusOf(p) === s).length, esc(s), '', 'status-tile st-' + cls(s))).join('') + '</div>';
+
+  html += '<h2 class="section">Active projects by owner</h2><div class="tiles">'
+    + state.data.owners.concat(['No owner']).map(o =>
+      tile(active.filter(p => o === 'No owner' ? !p.owner : p.owner === o).length, esc(o))).join('') + '</div>';
+
+  const months = [];
+  let y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
+  for (let i = 0; i < 6; i++) {
+    months.unshift({ key: y + '-' + String(m).padStart(2, '0'), label: MONTHS[m - 1] + ' ' + y });
+    if (--m === 0) { m = 12; y--; }
+  }
+  const counts = months.map(mo => delivered.filter(p => (p.deliveredDate || '').startsWith(mo.key)).length);
+  const max = Math.max.apply(null, counts.concat([1]));
+  html += '<h2 class="section">Delivered per month</h2><div class="bars">' + months.map((mo, i) =>
+    '<div class="bar-row"><span>' + mo.label + '</span><div><div class="bar-fill" style="width:' + (100 * counts[i] / max) + '%"></div></div><b>' + counts[i] + '</b></div>'
+  ).join('') + '</div>';
+  return html;
+}
+
+// ---------- moving and editing ----------
+// When the status changes, fill in the dates that obviously go with it.
+// Returns what it changed, so the person can check it before saving.
+function applyStatusDates(p, oldStatus) {
+  const today = state.data.today;
+  const changed = [];
+  if (p.status === 'In progress' && !p.startDate) { p.startDate = today; changed.push('Start date set to today'); }
+  if (p.status === 'Delivered' && !p.deliveredDate) { p.deliveredDate = today; changed.push('Delivered date set to today'); }
+  if (oldStatus === 'Delivered' && p.status !== 'Delivered' && p.deliveredDate) {
+    p.deliveredDate = '';
+    changed.push('Delivered date cleared, because it is no longer delivered');
+  }
+  return changed;
+}
+
+function moveTo(id, status) {
+  const p = find(id);
+  if (!p || p.status === status || status === NOT_SET) return;
+  const next = Object.assign({}, p, { status: status });
+  const changed = applyStatusDates(next, p.status);
+  // Anything filled in automatically, or a broken date in the Sheet, gets a look before saving.
+  if (changed.length || Object.keys(p.bad || {}).length) openDialog(p, next, changed);
+  else save(next);
+}
+
+function openDialog(original, values, changed) {
+  state.editing = original;
+  const d = state.data;
+  options(field('status'), d.statuses, d.statuses.includes(values.status) ? null : '— pick a status —');
+  options(field('owner'), d.owners, 'No owner');
+  options(field('priority'), d.priorities, 'Not set');
+  FIELDS.forEach(f => { field(f).value = values[f] || ''; });
+  if (!d.statuses.includes(values.status)) field('status').value = '';
+  field('status').dataset.prev = field('status').value;
+
+  $('#dlg-title').textContent = original.id ? 'Edit project' : 'New project';
+  $('#delete').hidden = !original.id;
+  $('#delete').textContent = 'Delete';
+  clearTimeout(armDelete.timer); armDelete.armed = false;
+  $('#dlg-meta').textContent = original.updatedAt
+    ? 'Last changed by ' + (original.updatedBy || 'someone') + ' on ' + fmt(original.updatedAt.slice(0, 10)) + ' at ' + original.updatedAt.slice(11, 16)
+    : (original.id ? 'Not changed through the tracker yet' : '');
+  hideDialogError();
+  showDialogNotes(original, changed || []);
+  $('#dlg').showModal();
+  if (!original.id) field('name').focus();
+}
+
+// A form input by its name. (form.name would give the form's own name.)
+function field(name) { return $('#form').elements.namedItem(name); }
+
+function showDialogNotes(original, changed) {
+  let html = '';
+  const bad = Object.keys(original.bad || {});
+  if (bad.length) {
+    html += '<div class="note red">These cells in the Sheet are not dates. Pick a date, or leave the box empty to clear it:<ul>'
+      + bad.map(f => '<li>' + esc(LABELS[f] || f) + ': "' + esc(original.bad[f]) + '"</li>').join('') + '</ul></div>';
+  }
+  if (changed.length) {
+    html += '<div class="note amber">Check these before saving:<ul>' + changed.map(c => '<li>' + esc(c) + '</li>').join('') + '</ul></div>';
+  }
+  $('#dlg-notes').innerHTML = html;
+}
+
+function readForm() {
+  const out = {};
+  FIELDS.forEach(f => { out[f] = field(f).value.trim(); });
+  return out;
+}
+
+function showDialogError(msg) { $('#dlg-error').textContent = msg; $('#dlg-error').hidden = false; }
+function hideDialogError() { $('#dlg-error').hidden = true; }
+
+function armDelete() {
+  const btn = $('#delete');
+  if (!armDelete.armed) {
+    armDelete.armed = true;
+    btn.textContent = 'Click again to delete';
+    armDelete.timer = setTimeout(() => { armDelete.armed = false; btn.textContent = 'Delete'; }, 4000);
+    return;
+  }
+  clearTimeout(armDelete.timer);
+  armDelete.armed = false;
+  btn.textContent = 'Delete';
+  remove(state.editing);
+}
+
+// ---------- events ----------
+$('#add').addEventListener('click', () => {
+  if (!state.data) return;
+  const blank = { id: '', updatedAt: '', bad: {}, status: 'Upcoming' };
+  openDialog(blank, blank, []);
+});
+$('#refresh').addEventListener('click', () => { $('#banner').hidden = true; load(false); });
+$('#banner button').addEventListener('click', () => { $('#banner').hidden = true; });
+$('#cancel').addEventListener('click', () => $('#dlg').close());
+$('#delete').addEventListener('click', armDelete);
+
+$('#form').addEventListener('submit', e => {
+  e.preventDefault();
+  const values = readForm();
+  if (!values.name) return showDialogError('Give the project a name.');
+  if (!values.status) return showDialogError('Pick a status.');
+  if (values.github && !safeUrl(values.github)) return showDialogError('The GitHub link should start with https://');
+  if (values.startDate && values.deliveredDate && values.deliveredDate < values.startDate) {
+    return showDialogError('The delivered date is before the start date. Check the dates.');
+  }
+  save(Object.assign({}, state.editing, values));
+});
+
+field('status').addEventListener('change', e => {
+  const values = readForm();
+  const changed = applyStatusDates(values, e.target.dataset.prev);
+  e.target.dataset.prev = values.status;
+  field('startDate').value = values.startDate;
+  field('deliveredDate').value = values.deliveredDate;
+  showDialogNotes(state.editing, changed);
+});
+
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  state.view = b.dataset.view;
+  setPref('view', state.view);
+  render();
+}));
+$('#search').addEventListener('input', e => { state.search = e.target.value; render(); });
+$('#owner-filter').addEventListener('change', e => { state.owner = e.target.value; setPref('owner', state.owner); render(); });
+
+const main = $('#main');
+main.addEventListener('click', e => {
+  if (e.target.closest('a')) return; // GitHub link
+  const th = e.target.closest('th[data-sort]');
+  if (th) {
+    const key = th.dataset.sort;
+    state.sort = { key: key, dir: state.sort.key === key ? -state.sort.dir : 1 };
+    render();
+    return;
+  }
+  const item = e.target.closest('[data-id]');
+  if (!item) return;
+  const p = find(item.dataset.id);
+  if (p) openDialog(p, p, []);
+  else showBanner('This row has no ID yet, so it cannot be edited here. Click Refresh, or edit it in the Sheet.');
+});
+main.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.matches('.card')) e.target.click();
+});
+
+// Drag a card to another column to change its status.
+main.addEventListener('dragstart', e => {
+  const c = e.target.closest('.card');
+  if (!c) return;
+  e.dataTransfer.setData('text/plain', c.dataset.id);
+  c.classList.add('dragging');
+});
+main.addEventListener('dragend', () => {
+  document.querySelectorAll('.dragging, .over').forEach(el => el.classList.remove('dragging', 'over'));
+});
+main.addEventListener('dragover', e => {
+  const col = e.target.closest('.col');
+  if (!col || col.dataset.status === NOT_SET) return;
+  e.preventDefault();
+  document.querySelectorAll('.col.over').forEach(el => { if (el !== col) el.classList.remove('over'); });
+  col.classList.add('over');
+});
+main.addEventListener('drop', e => {
+  const col = e.target.closest('.col');
+  if (!col) return;
+  e.preventDefault();
+  col.classList.remove('over');
+  moveTo(e.dataTransfer.getData('text/plain'), col.dataset.status);
+});
+
+// Pick up the other person's changes without anyone clicking Refresh.
+setInterval(() => {
+  if (!$('#dlg').open && !state.busy && document.visibilityState === 'visible') load(true);
+}, 60000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !$('#dlg').open && !state.busy) load(true);
+});
+
+load(false);
+</script>
+</body>
+</html>
