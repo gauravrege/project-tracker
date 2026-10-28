@@ -16,6 +16,7 @@ reading and writing that one Sheet:
 | `server.js` | Cloud Run server: serves the page, reads and writes the Sheet. No npm packages. |
 | `Dockerfile`, `package.json`, `.gcloudignore` | How Cloud Run builds it. Only those files and `Index.html` are uploaded. |
 | `deploy-cloud-run.sh` | Puts it on Cloud Run (see below). Reads `cloud.env`, which is **not committed**. |
+| `remove-cloud-run.sh` | Takes it off Cloud Run again. The Sheet and the Apps Script version stay. |
 | `Code.gs` | Apps Script version of the server. Keep its lists in step with `server.js`. |
 | `Index.html` | The webpage |
 | `appsscript.json` | Google settings: India time, page runs as whoever opens it, riya.travel accounts only |
@@ -42,12 +43,29 @@ account. The script:
 1. switches on IAP, Google's sign-in gate in front of the page;
 2. makes a server account with no project roles;
 3. shares **only the tracker Sheet** with that account as Editor;
-4. builds and deploys, at most 1 copy running (keeps it inside the free tier,
+4. makes the tracker's own image storage, keeping the 2 newest builds;
+5. builds and deploys, at most 1 copy running (keeps it inside the free tier,
    and lets the server do one save at a time);
-5. lets IAP call the server and nobody else;
-6. gives each person on `PEOPLE` access through IAP.
+6. lets IAP call the server and nobody else;
+7. gives each person on `PEOPLE` access through IAP.
 
 To add someone later: add their email to `PEOPLE` and run the script again.
+
+### Sharing the Cloud project with MasterDash
+
+The tracker lives in the Cloud project made for MasterDash, so it keeps out of
+MasterDash's way:
+
+- everything it creates is named `project-tracker` and labelled
+  `app=project-tracker` (the service, its account, its image storage), so the
+  billing report shows its cost separately;
+- it builds into its own image storage, not the shared `cloud-run-source-deploy`,
+  and keeps only the 2 newest images;
+- permissions are set on the tracker's own service only, never project-wide;
+- it has no secrets, no scheduler jobs, and runs at most 1 copy;
+- the deploy stops if a service called `project-tracker` exists that isn't ours.
+
+`bash remove-cloud-run.sh` removes all of it.
 
 ## Google Apps Script setup
 
