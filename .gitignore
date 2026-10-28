@@ -8,3 +8,6 @@ Local.gs
 # Test output
 tests/preview.html
 tests/*.png
+
+# Cloud Run settings: project, Sheet ID, who has access
+cloud.env

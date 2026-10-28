@@ -1,0 +1,6 @@
+# Only these are uploaded to Google Cloud Build. Everything else stays on this PC.
+*
+!Dockerfile
+!package.json
+!server.js
+!Index.html
