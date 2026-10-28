@@ -87,9 +87,11 @@ const scenario = `
   const setField = (f, v) => { const el = field(f); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); };
   const submit = () => document.querySelector('#save').click();
 
-  check('11 cards on the board', document.querySelectorAll('.card').length === 11, document.querySelectorAll('.card').length);
-  check('Not set column shown for the project with no status', cardsIn('Not set').includes('Greeting cards'));
-  check('bad date shown on card', /not a date: "next week"/.test(document.body.textContent));
+  const noSideScroll = () => document.documentElement.scrollWidth <= window.innerWidth;
+  check('10 cards on the board', document.querySelectorAll('.card').length === 10, document.querySelectorAll('.card').length);
+  check('project with no status is listed above the board', /Greeting cards/.test(document.querySelector('.notice').textContent));
+  check('bad date shown in that list', /not a date: "next week"/.test(document.querySelector('.notice').textContent));
+  check('board fits without sideways scrolling', noSideScroll(), [document.documentElement.scrollWidth, window.innerWidth]);
   check('Needs attention badge has a count', Number(document.querySelector('#attn-count').textContent) > 0);
 
   // add
@@ -168,13 +170,24 @@ const scenario = `
   // other views
   document.querySelector('[data-view="table"]').click();
   check('table has a row per project', document.querySelectorAll('tbody tr').length === state.data.projects.length);
+  check('table fits without sideways scrolling', noSideScroll(), [document.documentElement.scrollWidth, window.innerWidth]);
   document.querySelector('th[data-sort="late"]').click();
   check('sorting by On time? works', document.querySelector('th[data-sort="late"]').getAttribute('aria-sort') === 'ascending');
   document.querySelector('[data-view="attention"]').click();
   const attn = document.querySelector('#main').textContent;
   check('attention lists overdue, blocked, long testing, stale', /past target date/.test(attn) && /Blocked: Waiting/.test(attn) && /No update for 20 days/.test(attn), attn.slice(0, 400));
+  check('attention fits without sideways scrolling', noSideScroll(), [document.documentElement.scrollWidth, window.innerWidth]);
   document.querySelector('[data-view="numbers"]').click();
   check('numbers view shows on-time percentage', /Delivered on time/.test(document.querySelector('#main').textContent));
+  check('numbers fit without sideways scrolling', noSideScroll(), [document.documentElement.scrollWidth, window.innerWidth]);
+
+  // a long Delivered column shows the newest 5 until "Show more"
+  ['Old one', 'Old two'].forEach((name, i) => server.saveProject({ id: '', updatedAt: '', name: name, status: 'Delivered', deliveredDate: __day(-90 - i) }));
+  document.querySelector('[data-view="board"]').click();
+  document.querySelector('#refresh').click(); await wait(100);
+  check('Delivered column shows 5 of 6', cardsIn('Delivered').length === 5 && /Show 1 more/.test(document.querySelector('[data-more]').textContent), cardsIn('Delivered'));
+  document.querySelector('[data-more]').click();
+  check('Show more shows all 6', cardsIn('Delivered').length === 6 && cardsIn('Delivered').includes('Old two'), cardsIn('Delivered'));
 
   document.body.insertAdjacentHTML('beforeend', '<pre id="results">' + results.join('\\n').replace(/</g, '&lt;') + '</pre>');
 })();

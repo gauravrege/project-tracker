@@ -55,6 +55,13 @@ with the emails in `Local.gs`.
   *In progress* fills in today as the start date. Moving it to *Delivered* fills in
   today as the delivered date. Either way, the form opens so you can check the date first.
 - **Click any card** to edit all of its details.
+- The *Delivered* column shows the newest 5. Click *Show more* for the rest.
+- A project with no status (or a status typed into the Sheet that isn't one of
+  ours) is listed above the board until you pick one.
+- Keyboard: **/** jumps to search, **N** starts a new project.
+- The page fits any screen width without scrolling sideways: on a narrow
+  window the board wraps onto more rows and the table hides its less
+  important columns.
 - **Table:** every project in one list. Click a column heading to sort.
   *Days taken* and *On time?* are worked out from the dates.
 - **Needs attention:** lists projects that are past their target date, due within
@@ -104,5 +111,5 @@ node tests/build-preview.js .         # builds tests/preview.html with sample pr
 ```
 
 Open `tests/preview.html` in a browser to click around the page with sample data.
-Add `?test=1` to the end of the address to run the 28 page checks. The results
+Add `?test=1` to the end of the address to run the 34 page checks. The results
 appear at the bottom of the page.
