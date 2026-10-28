@@ -574,18 +574,12 @@ function visible() {
 }
 
 // ---------- talking to the server ----------
-// The same page runs in two places: inside Google Apps Script (google.script.run)
-// and on Google Cloud Run (server.js answers at api/<function name>).
 function call(fn, args, onOk, onFail) {
-  if (window.google && google.script && google.script.run) {
-    google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail)[fn](...args);
+  if (!window.google || !google.script || !google.script.run) {
+    onFail(new Error('This page only works when opened from its Google Apps Script link.'));
     return;
   }
-  fetch('api/' + fn, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args), credentials: 'same-origin' })
-    .then(r => r.json().then(
-      body => (r.ok ? onOk(body) : onFail(new Error(body.error || 'Something went wrong (' + r.status + ').'))),
-      () => onFail(new Error('Something went wrong (' + r.status + '). Reload the page.'))))
-    .catch(() => onFail(new Error('Could not reach the tracker. Your sign-in may have expired: reload the page.')));
+  google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail)[fn](...args);
 }
 function errText(err) { return String((err && err.message) || err).replace(/^(Exception|Error|ScriptError):\s*/, ''); }
 function stamp() { const n = new Date(); return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }

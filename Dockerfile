@@ -1,6 +1,0 @@
-FROM node:22-slim
-WORKDIR /app
-COPY package.json server.js Index.html ./
-ENV NODE_ENV=production
-USER node
-CMD ["node", "server.js"]
