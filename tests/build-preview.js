@@ -83,7 +83,7 @@ const scenario = `
   const results = [];
   const check = (name, cond, extra) => results.push((cond ? 'PASS ' : 'FAIL ') + name + (cond ? '' : '  -> ' + JSON.stringify(extra)));
   const byName = n => state.data.projects.find(x => x.name === n);
-  const cardsIn = s => [...document.querySelectorAll('.col[data-status="' + s + '"] .card')].map(c => c.querySelector('b').textContent);
+  const cardsIn = s => [...document.querySelectorAll('.col[data-status="' + s + '"] .card')].map(c => c.querySelector('.card-title').textContent);
   const setField = (f, v) => { const el = field(f); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); };
   const submit = () => document.querySelector('#save').click();
 
@@ -161,7 +161,7 @@ const scenario = `
   search.value = ''; search.dispatchEvent(new Event('input'));
   const owner = document.querySelector('#owner-filter');
   owner.value = 'Bhargavi'; owner.dispatchEvent(new Event('change'));
-  const names = [...document.querySelectorAll('.card b')].map(b => b.textContent);
+  const names = [...document.querySelectorAll('.card .card-title')].map(b => b.textContent);
   check('owner filter shows Bhargavi + Both projects', names.includes('resumescraper') && names.includes('mstrdash') && !names.includes('ERP retail'), names);
   owner.value = 'All'; owner.dispatchEvent(new Event('change'));
 
@@ -169,7 +169,7 @@ const scenario = `
   document.querySelector('[data-view="table"]').click();
   check('table has a row per project', document.querySelectorAll('tbody tr').length === state.data.projects.length);
   document.querySelector('th[data-sort="late"]').click();
-  check('sorting by On time? works', /▲/.test(document.querySelector('th[data-sort="late"]').textContent));
+  check('sorting by On time? works', document.querySelector('th[data-sort="late"]').getAttribute('aria-sort') === 'ascending');
   document.querySelector('[data-view="attention"]').click();
   const attn = document.querySelector('#main').textContent;
   check('attention lists overdue, blocked, long testing, stale', /past target date/.test(attn) && /Blocked: Waiting/.test(attn) && /No update for 20 days/.test(attn), attn.slice(0, 400));
