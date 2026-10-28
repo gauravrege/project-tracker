@@ -146,7 +146,22 @@ m.canWrite = true;
 
 // --- 13. Not set up yet ------------------------------------------------------
 m.props = {};
+m.active = false; // script not attached to a Sheet
 check('not set up gives a clear message', /not set up yet/.test(throws(() => run('getData()')) || ''));
+m.active = true;
+
+// --- 14. First visit sets itself up, using Local.gs ---------------------------
+m.newSpreadsheet([]);
+run(`const SHARE_WITH = ['a@example.com', 'b@example.com'];
+     const STARTING_PROJECTS = [{ name: 'One' }, { name: 'Two', status: 'In progress', github: 'https://github.com/x/two', notes: '=not a formula' }];`);
+d = run('getData()');
+check('first visit runs setup by itself', m.props.SHEET_ID === 'SHEET123' && !!m.ss.getSheetByName('History'));
+check('starting projects loaded', d.projects.length === 2 && d.projects[1].status === 'In progress' && d.projects[1].notes === '=not a formula', d.projects);
+check('starting projects get IDs', d.projects.every(x => x.id.length === 8));
+check('Sheet shared with SHARE_WITH', JSON.stringify(m.ss.editors) === '["a@example.com","b@example.com"]', m.ss.editors);
+check('time zone set to India', m.ss.tz === 'Asia/Kolkata', m.ss.tz);
+run('setup()');
+check('running setup again does not load the projects twice', run('getData()').projects.length === 2);
 
 console.log(failed ? '\n' + failed + ' FAILED' : '\nAll passed');
 process.exit(failed ? 1 : 0);

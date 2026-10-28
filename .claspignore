@@ -1,0 +1,6 @@
+# clasp pushes only these to Google
+**/**
+!Code.gs
+!Index.html
+!Local.gs
+!appsscript.json

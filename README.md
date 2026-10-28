@@ -11,47 +11,42 @@ in with your Google account.
 |---|---|
 | `Code.gs` | Reads and writes the Sheet |
 | `Index.html` | The webpage |
-| `data/seed-projects.csv` | Starting list of our existing projects. **Not committed** (real data). |
+| `appsscript.json` | Google settings: India time, page runs as whoever opens it, riya.travel accounts only |
+| `Local.gs` | Who to share the Sheet with + our starting project list. **Not committed** (real data). |
+| `data/seed-projects.csv` | The same starting list as a spreadsheet file. **Not committed.** |
 | `tests/` | Checks for the code, run on this PC (see the end of this file) |
 
-## Setup (once, about 15 minutes)
+The live tracker is owned by our **shared intern Google account**. Gaurav and Bhargavi have
+edit access with their own accounts. Only people with edit access to the Sheet
+can change anything.
 
-One person does this. The Sheet will belong to them.
+## Setup
 
-**1. Make the Sheet.**
-Go to <https://sheets.new>. Name it `Project Tracker`.
-Go to File > Settings and set the time zone to *(GMT+05:30) India Standard Time*.
+This was done from this PC with `clasp` (Google's command line tool for Apps Script),
+logged in as the shared intern account under the name `work`:
 
-**2. Load the starting list (optional).**
-File > Import > Upload > choose `data/seed-projects.csv`.
-Set *Import location* to **Replace current sheet**, then click *Import data*.
+```
+clasp login --user work                                   # pick the shared intern account
+clasp create-script --type sheets --title "Project Tracker" --user work
+clasp push --user work                                    # sends the 4 files in .claspignore
+clasp create-deployment --description "v1" --user work    # prints the web app ID
+```
 
-**3. Add the code.**
-In the Sheet: Extensions > Apps Script.
-- Click `Code.gs`, delete everything in it, and paste in all of `Code.gs` from this folder.
-- Click **+** next to *Files* > **HTML**. Name it `Index` (it adds `.html` for you).
-  Delete everything in it and paste in all of `Index.html`.
-- Press Ctrl+S.
+The Apps Script API has to be switched on for the account first:
+<https://script.google.com/home/usersettings>.
 
-**4. Run setup.**
-In the toolbar, pick `setup` from the dropdown (next to *Debug*), then click **Run**.
-Google asks for permission: *Review permissions* > choose your account > *Allow*.
-If it says *"Google hasn't verified this app"*, click *Advanced* > *Go to Project Tracker*.
-This is your own script, so it's safe.
-Wait for *Execution completed*. The Sheet now has a **Projects** tab with
-dropdowns and a **History** tab.
+**The first time the page is opened, it sets itself up.** It makes the Projects
+and History tabs, loads the starting list from `Local.gs`, and shares the Sheet
+with the emails in `Local.gs`.
 
-**5. Share the Sheet** with the other person as **Editor** (Share button, top right).
-Only people with edit access to the Sheet can change anything in the tracker.
+### Without clasp (by hand)
 
-**6. Publish the webpage.**
-In Apps Script: **Deploy > New deployment** > gear icon > **Web app**.
-- *Execute as:* **User accessing the web app**
-- *Who has access:* **Anyone within riya.travel** (if that isn't offered: *Anyone with Google account*)
-
-Click **Deploy** and copy the *Web app URL*. Bookmark it and send it to the other person.
-
-**7.** The other person opens the link and allows permissions once.
+1. <https://sheets.new> > name it `Project Tracker`.
+2. Extensions > Apps Script. Paste `Code.gs` into Code.gs. Add HTML file `Index`
+   and paste `Index.html`. Add script file `Local` and paste `Local.gs`. Ctrl+S.
+3. Deploy > New deployment > gear > **Web app**. *Execute as:* **User accessing the
+   web app**. *Who has access:* **Anyone within riya.travel**. Deploy.
+4. Open the web app link and allow permissions. It sets itself up.
 
 ## Using it
 
@@ -82,13 +77,20 @@ Click **Deploy** and copy the *Web app URL*. Bookmark it and send it to the othe
 
 ## Changing the code later
 
-Saving in Apps Script is **not** enough. The webpage keeps running the old
-version until you publish a new one:
-**Deploy > Manage deployments** > pencil icon > *Version:* **New version** > **Deploy**.
-The link stays the same.
+Saving or pushing is **not** enough. The webpage keeps running the old
+version until you publish a new one. From this PC:
+
+```
+clasp push --user work
+clasp deployments --user work                                        # find the web app ID
+clasp update-deployment <that ID> --description "what changed" --user work
+```
+
+By hand: **Deploy > Manage deployments** > pencil icon > *Version:* **New version** > **Deploy**.
+Either way the link stays the same.
 
 To change the owner names, statuses or priorities, edit the lists at the top
-of `Code.gs`, run `setup` again, then publish a new version.
+of `Code.gs`, push, run `setup` once from the Apps Script editor, then publish a new version.
 
 ## Tests
 
@@ -96,7 +98,7 @@ of `Code.gs`, run `setup` again, then publish a new version.
 so the real `Code.gs` can run on this PC.
 
 ```
-node tests/server-test.js Code.gs     # 41 checks on saving, conflicts, dates, setup
+node tests/server-test.js Code.gs     # 47 checks on saving, conflicts, dates, setup
 node tests/build-preview.js .         # builds tests/preview.html with sample projects
 ```
 

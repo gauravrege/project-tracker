@@ -1,11 +1,15 @@
 // Project Tracker: a webpage on top of a Google Sheet.
 // The Sheet is the database. The webpage (Index.html) reads and writes it.
 // Setup steps are in README.md.
+//
+// Local.gs (not on GitHub) may define SHARE_WITH (emails to give edit access)
+// and STARTING_PROJECTS (rows to load into an empty tracker). setup() uses both.
 
 // Dropdown choices. Change these, then run setup() again to update the Sheet.
 const OWNERS = ['Gaurav', 'Bhargavi', 'Both'];
 const STATUSES = ['Upcoming', 'In progress', 'Testing', 'Delivered', 'On hold'];
 const PRIORITIES = ['High', 'Medium', 'Low'];
+const TIME_ZONE = 'Asia/Kolkata';
 
 const PROJECTS_SHEET = 'Projects';
 const HISTORY_SHEET = 'History';
@@ -39,14 +43,15 @@ const EDITABLE = ['name', 'owner', 'askedBy', 'status', 'priority', 'startDate',
 const LABELS = Object.fromEntries(COLUMNS.map(([header, field]) => [field, header]));
 
 // ---------------------------------------------------------------------------
-// Run this once from the Apps Script editor. Safe to run again any time.
+// Runs by itself the first time the webpage is opened. Can also be run from
+// the Apps Script editor. Safe to run again any time.
 // ---------------------------------------------------------------------------
-function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function setup(ss) {
+  ss = ss && ss.getId ? ss : SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
     throw new Error('Open Apps Script from inside the Google Sheet (Extensions > Apps Script), then run setup again.');
   }
-  PropertiesService.getScriptProperties().setProperty('SHEET_ID', ss.getId());
+  ss.setSpreadsheetTimeZone(TIME_ZONE);
 
   let sheet = ss.getSheetByName(PROJECTS_SHEET);
   if (!sheet) {
@@ -86,8 +91,22 @@ function setup() {
   column('updatedAt').setNumberFormat('dd mmm yyyy hh:mm');
 
   historySheet_(ss);
+  if (typeof STARTING_PROJECTS !== 'undefined' && sheet.getLastRow() < 2) addStartingProjects_(sheet, cols, STARTING_PROJECTS);
   fillMissingIds_(sheet, cols);
+  if (typeof SHARE_WITH !== 'undefined') SHARE_WITH.forEach(email => ss.addEditor(email));
+
+  // Saved last, so a setup that failed half way runs again on the next visit.
+  PropertiesService.getScriptProperties().setProperty('SHEET_ID', ss.getId());
   console.log('Setup done. Sheet: ' + ss.getUrl());
+}
+
+function addStartingProjects_(sheet, cols, projects) {
+  const rows = projects.map(p => {
+    const row = new Array(cols.width).fill('');
+    Object.keys(p).forEach(field => { row[cols[field]] = safeText_(String(p[field])); });
+    return row;
+  });
+  if (rows.length) sheet.getRange(2, 1, rows.length, cols.width).setValues(rows);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,8 +258,14 @@ function onEdit(e) {
 // Helpers
 // ---------------------------------------------------------------------------
 function getSheet_() {
-  const id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
-  if (!id) throw new Error('The tracker is not set up yet. Open the Sheet, go to Extensions > Apps Script and run "setup".');
+  let id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  if (!id) {
+    // First visit: set the Sheet up now. Works because this script belongs to the Sheet.
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) throw new Error('The tracker is not set up yet. Open the Sheet, go to Extensions > Apps Script and run "setup".');
+    setup(ss);
+    id = ss.getId();
+  }
   const sheet = SpreadsheetApp.openById(id).getSheetByName(PROJECTS_SHEET);
   if (!sheet) throw new Error('The "' + PROJECTS_SHEET + '" tab is missing from the Google Sheet. Run "setup" in Apps Script to add it back.');
   return sheet;

@@ -93,6 +93,8 @@
   Spreadsheet.prototype.getId = function () { return this.id; };
   Spreadsheet.prototype.getUrl = function () { return 'https://docs.google.com/spreadsheets/d/' + this.id; };
   Spreadsheet.prototype.getSpreadsheetTimeZone = function () { return TZ; };
+  Spreadsheet.prototype.setSpreadsheetTimeZone = function (tz) { this.tz = tz; };
+  Spreadsheet.prototype.addEditor = function (email) { this.editors = (this.editors || []).concat(email); return this; };
 
   const validationBuilder = () => {
     const b = { build: () => ({}) };

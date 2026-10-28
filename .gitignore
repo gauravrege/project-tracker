@@ -1,5 +1,9 @@
-# Real project list - business data, never commit
+# Real project list and our emails - business data, never commit
 data/
+Local.gs
+
+# Links this folder to our Google script
+.clasp.json
 
 # Test output
 tests/preview.html
